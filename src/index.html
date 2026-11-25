@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bearite</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="window">
+
+  <!-- decorative shapes in the bottom-right corner -->
+  <div class="deco deco-cream"></div>
+  <div class="deco deco-brown"></div>
+  <div class="deco deco-dot"></div>
+
+  <div class="logo-cell">
+    <img class="logo" src="assets/logo.png" alt="Bearite" draggable="false">
+  </div>
+
+  <header class="topbar">
+    <div class="brand">Bearite</div>
+    <div class="brand-sep"></div>
+    <div class="chip"><span class="dot"></span>FAN-MADE LAUNCHER</div>
+    <div class="spacer"></div>
+    <label class="version">
+      <select id="version" aria-label="Версия лаунчера">
+        <option>1.2.0</option>
+      </select>
+    </label>
+    <div class="controls">
+      <button class="win-btn" id="btn-min" title="Свернуть" aria-label="Свернуть">
+        <svg viewBox="0 0 24 24"><path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button class="win-btn" id="btn-close" title="Закрыть" aria-label="Закрыть">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <nav class="sidebar">
+    <button class="nav-item active" data-page="game">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+      <span>Игра</span>
+    </button>
+    <button class="nav-item" data-page="mods">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z"/></svg>
+      <span>Моды</span>
+    </button>
+    <button class="nav-item" data-page="log">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+      <span>Лог</span>
+    </button>
+    <div class="nav-sep"></div>
+    <button class="nav-item" data-page="settings">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      <span>Настройки</span>
+    </button>
+    <button class="nav-item" data-page="help">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/></svg>
+      <span>Помощь</span>
+    </button>
+    <div class="nav-sep"></div>
+    <button class="nav-item" id="btn-exit">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+      <span>Выход</span>
+    </button>
+  </nav>
+
+  <main class="main">
+
+    <!-- Игра -->
+    <section class="page page-game active" id="page-game">
+      <div class="hero">
+        <div class="hero-left">
+          <div>
+            <h1>Твоё новое приключение.</h1>
+            <p class="lead">Запускай Super Bear Adventure с модами и своими картами. <span class="underline">Оригинальная игра</span> остаётся нетронутой.</p>
+          </div>
+          <div class="pill" id="mods-pill">
+            <span class="dot"></span>
+            <div>
+              <div class="pill-label">Моды</div>
+              <div class="pill-value" id="mods-count">Включено 1 из 1</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-center">
+          <div class="orbit orbit-outer"><i class="orb orb-a"></i><i class="orb orb-b"></i><i class="orb orb-c"></i></div>
+          <div class="orbit orbit-inner"></div>
+          <div class="bear-card"><img src="assets/bear.png" alt="" draggable="false"></div>
+        </div>
+
+        <div class="hero-right">
+          <div class="card game-card">
+            <div class="card-label">Твоя игра</div>
+            <div class="card-title" id="game-name">Super Bear Adventure</div>
+          </div>
+          <button class="btn btn-primary" id="btn-play">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+            Играть с модами
+          </button>
+          <button class="btn btn-secondary" id="btn-save">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            Загрузить сохранение
+          </button>
+          <div class="card status-card">
+            <svg class="status-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="currentColor"/><path d="M7 12.5l3.3 3.3L17 9" fill="none" stroke="#2b1c14" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div>
+              <div class="status-title" id="game-status">Super Bear Adventure найдена</div>
+              <div class="status-sub" id="game-meta">Версия 1.3.0.8 · com.Earthkwak.Platformer</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="infobar">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+        <span>Оригинальная игра не изменяется и не удаляется. Сохранения запуска через Bearite хранятся отдельно от неё.</span>
+      </div>
+    </section>
+
+    <!-- Моды -->
+    <section class="page" id="page-mods">
+      <h2>Моды</h2>
+      <p class="muted">Включённые моды загружаются вместе с игрой.</p>
+      <div class="list" id="mods-list"></div>
+    </section>
+
+    <!-- Лог -->
+    <section class="page" id="page-log">
+      <h2>Лог</h2>
+      <p class="muted">Что делает лаунчер прямо сейчас.</p>
+      <pre class="logbox" id="logbox"></pre>
+    </section>
+
+    <!-- Настройки -->
+    <section class="page" id="page-settings">
+      <h2>Настройки</h2>
+      <div class="card soon">
+        <div class="card-title">Скоро</div>
+        <p class="muted">Здесь появятся папка данных, размер окна игры и раскладка клавиш.</p>
+      </div>
+    </section>
+
+    <!-- Помощь -->
+    <section class="page" id="page-help">
+      <h2>Помощь</h2>
+      <div class="card soon">
+        <div class="card-title">Bearite-PC</div>
+        <p class="muted">Лаунчер запускает Super Bear Adventure с модами. Оригинальная игра остаётся нетронутой, а сохранения лежат отдельно.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>

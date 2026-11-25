@@ -1,0 +1,28 @@
+name: Build Bearite-PC
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Build
+        working-directory: src-tauri
+        run: cargo build --release --features custom-protocol
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Bearite-PC
+          path: src-tauri/target/release/bearite-pc.exe
+          if-no-files-found: error
