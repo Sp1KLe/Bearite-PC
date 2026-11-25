@@ -7,12 +7,23 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<!-- sparkle shape, reused below -->
+<svg class="sprite" aria-hidden="true">
+  <symbol id="spark" viewBox="0 0 24 24"><path d="M12 0c.8 7 5 11.2 12 12-7 .8-11.2 5-12 12-.8-7-5-11.2-12-12 7-.8 11.2-5 12-12z"/></symbol>
+</svg>
+
 <div class="window">
 
-  <!-- decorative shapes in the bottom-right corner -->
+  <!-- decorative shapes -->
   <div class="deco deco-cream"></div>
   <div class="deco deco-brown"></div>
   <div class="deco deco-dot"></div>
+  <svg class="spark s1"><use href="#spark"/></svg>
+  <svg class="spark s2"><use href="#spark"/></svg>
+  <svg class="spark s3"><use href="#spark"/></svg>
+  <svg class="spark s4"><use href="#spark"/></svg>
+  <svg class="spark s5"><use href="#spark"/></svg>
 
   <div class="logo-cell">
     <img class="logo" src="assets/logo.png" alt="Bearite" draggable="false">
@@ -87,6 +98,7 @@
         </div>
 
         <div class="hero-center">
+          <div class="orbit orbit-glow"></div>
           <div class="orbit orbit-outer"><i class="orb orb-a"></i><i class="orb orb-b"></i><i class="orb orb-c"></i></div>
           <div class="orbit orbit-inner"></div>
           <div class="bear-card"><img src="assets/bear.png" alt="" draggable="false"></div>
@@ -109,7 +121,7 @@
             <svg class="status-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="currentColor"/><path d="M7 12.5l3.3 3.3L17 9" fill="none" stroke="#2b1c14" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <div>
               <div class="status-title" id="game-status">Super Bear Adventure найдена</div>
-              <div class="status-sub" id="game-meta">Версия 1.3.0.8 · com.Earthkwak.Platformer</div>
+              <div class="status-sub" id="game-meta">Версия 13.0.8 · com.Earthkwak.Platformer</div>
             </div>
           </div>
         </div>
@@ -123,33 +135,84 @@
 
     <!-- Моды -->
     <section class="page" id="page-mods">
-      <h2>Моды</h2>
-      <p class="muted">Включённые моды загружаются вместе с игрой.</p>
-      <div class="list" id="mods-list"></div>
+      <div class="mod-list" id="mods-list"></div>
+      <div class="folder">
+        <div class="folder-label">Папка модов:</div>
+        <div class="folder-path" id="mods-path"></div>
+      </div>
+      <button class="fab" id="btn-install">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        Установить мод
+      </button>
     </section>
 
     <!-- Лог -->
     <section class="page" id="page-log">
-      <h2>Лог</h2>
-      <p class="muted">Что делает лаунчер прямо сейчас.</p>
+      <div class="toolbar">
+        <button class="tool tool-filled" id="log-refresh">Обновить</button>
+        <button class="tool" id="log-copy">Копировать</button>
+        <button class="tool" id="log-clear">Очистить</button>
+      </div>
       <pre class="logbox" id="logbox"></pre>
     </section>
 
     <!-- Настройки -->
     <section class="page" id="page-settings">
       <h2>Настройки</h2>
-      <div class="card soon">
-        <div class="card-title">Скоро</div>
-        <p class="muted">Здесь появятся папка данных, размер окна игры и раскладка клавиш.</p>
+      <div class="two">
+        <div class="card big">
+          <div class="card-head">
+            <span class="avatar"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></span>
+            <div>
+              <div class="card-title">Ник в мультиплеере</div>
+              <p class="muted">Мод ставит его перед подключением к комнатам. Тот же ник используется в чате.</p>
+            </div>
+          </div>
+          <label class="field">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            <span class="field-body">
+              <span class="field-label">Ник</span>
+              <input id="nick" type="text" maxlength="24" autocomplete="off" spellcheck="false">
+            </span>
+          </label>
+          <div class="counter" id="nick-count">0/24</div>
+        </div>
+
+        <div class="card big">
+          <div class="card-title">Данные и обслуживание</div>
+          <div class="path-block">
+            <div class="muted">Папка модов:</div>
+            <div class="path" id="set-mods-path"></div>
+          </div>
+          <div class="path-block">
+            <div class="muted">Данные лаунчера:</div>
+            <div class="path" id="set-data-path"></div>
+          </div>
+          <button class="btn-outline" id="set-copy-log">Скопировать лог</button>
+          <button class="btn-outline" id="set-clear-log">Очистить лог</button>
+        </div>
       </div>
     </section>
 
     <!-- Помощь -->
     <section class="page" id="page-help">
       <h2>Помощь</h2>
-      <div class="card soon">
-        <div class="card-title">Bearite-PC</div>
-        <p class="muted">Лаунчер запускает Super Bear Adventure с модами. Оригинальная игра остаётся нетронутой, а сохранения лежат отдельно.</p>
+      <div class="two">
+        <div class="card big">
+          <div class="card-title">Как пользоваться</div>
+          <ol class="steps">
+            <li>Установи Super Bear Adventure из магазина, оригинал мы не трогаем.</li>
+            <li>На вкладке «Моды» поставь нужные моды zip-файлом и включи их.</li>
+            <li>Нажми «Играть с модами». Включение и выключение модов действует после перезапуска игры.</li>
+            <li>Старое сохранение можно перенести кнопкой «Загрузить сохранение».</li>
+          </ol>
+        </div>
+        <div class="card big">
+          <div class="card-title">Если что-то не работает</div>
+          <p class="muted help-text">Если игра вылетела или что-то работает не так, открой вкладку «Лог» и скопируй его. Лог пригодится, чтобы найти причину. Мод пишет туда всё, что делает в игре.</p>
+          <button class="btn-outline" id="help-open-log">Открыть лог</button>
+          <button class="btn-outline" id="help-github">Страница проекта на GitHub</button>
+        </div>
       </div>
     </section>
 
