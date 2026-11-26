@@ -201,7 +201,7 @@ $('btn-exit').addEventListener('click', closeWindow);
 $('btn-min').addEventListener('click', () => { if (appWindow) appWindow.minimize(); });
 
 // ---------- window dragging (frameless window) ----------
-document.querySelectorAll('.topbar, .logo-cell, .topbar > *:not(.controls):not(.version), .topbar .brand, .topbar .chip')
+document.querySelectorAll('.topbar, .logo-cell, .topbar > *:not(.controls), .topbar .brand, .topbar .chip')
   .forEach((el) => el.setAttribute('data-tauri-drag-region', ''));
 
 // ---------- start ----------
@@ -210,5 +210,4 @@ $('set-mods-path').textContent = MODS_PATH;
 $('set-data-path').textContent = DATA_PATH;
 renderGame();
 renderMods();
-renderLog();
-log('Bearite-PC запущен');
+renderLog(); // the log starts empty

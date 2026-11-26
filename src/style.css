@@ -101,26 +101,13 @@ button, select, input { font-family: inherit; color: inherit; }
   display: inline-flex;
   align-items: center;
   height: 34px;
-  padding: 0 6px 0 14px;
+  padding: 0 16px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: rgba(60, 40, 30, 0.4);
-}
-.version select {
-  appearance: none;
-  -webkit-appearance: none;
-  background-color: transparent;
-  border: 0;
-  outline: 0;
   font-size: 14px;
-  padding-right: 20px;
-  cursor: pointer;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23f3e3d3' d='M7 10l5 5 5-5z'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right center;
-  background-size: 18px;
+  color: var(--cream-2);
 }
-.version option { background: #2a1c16; color: var(--text); }
 
 .controls { display: flex; gap: 4px; }
 .win-btn {
