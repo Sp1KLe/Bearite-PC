@@ -469,7 +469,9 @@ fn prepare_components(app: &AppHandle) -> R<()> {
     let total: u64 = jobs.iter().map(|j| j.size).sum();
     let mut done: u64 = 0;
     for job in &jobs {
-        let zip = work_dir().join(format!("component{}.zip", done));
+        // Named after Google's file, so a half-finished download is never mixed up with another one.
+        let file_name = job.url.rsplit('/').next().unwrap_or("component.zip");
+        let zip = work_dir().join(file_name);
         log(app, format!("Скачиваю {} ({} МБ)", job.label, job.size / 1_048_576));
         download(app, job.label, &job.url, &zip, done, total)?;
 

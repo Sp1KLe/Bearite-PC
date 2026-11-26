@@ -107,7 +107,7 @@
           </div>
           <button class="btn btn-primary" id="btn-play">
             <svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
-            Играть с модами
+            <span id="play-label">Играть с модами</span>
           </button>
           <button class="btn btn-secondary" id="btn-save">
             <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
@@ -116,8 +116,8 @@
           <div class="card status-card">
             <svg class="status-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="currentColor"/><path d="M7 12.5l3.3 3.3L17 9" fill="none" stroke="#2b1c14" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <div>
-              <div class="status-title" id="game-status">Super Bear Adventure найдена</div>
-              <div class="status-sub" id="game-meta">Версия 13.0.8 · com.Earthkwak.Platformer</div>
+              <div class="status-title" id="game-status">Super Bear Adventure</div>
+              <div class="status-sub" id="game-meta">com.Earthkwak.Platformer</div>
             </div>
           </div>
         </div>
@@ -213,6 +213,18 @@
     </section>
 
   </main>
+</div>
+
+<div class="modal" id="consent" hidden>
+  <div class="modal-card">
+    <div class="card-title">Нужны компоненты Android</div>
+    <p class="muted">Чтобы игра работала на ПК, лаунчер один раз скачает урезанный Android-эмулятор от Google и файл игры. Примерно 2–3 ГБ загрузки и до 6 ГБ места на диске. Всё хранится в папке <span class="path" id="consent-path"></span> и больше нигде не ставится.</p>
+    <p class="muted small">Используются Android Emulator и системный образ Google, их условия: developer.android.com/studio/terms. Нажимая «Скачать и играть», вы с ними соглашаетесь.</p>
+    <div class="modal-actions">
+      <button class="tool" id="consent-no">Отмена</button>
+      <button class="tool tool-cream" id="consent-yes">Скачать и играть</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status"></div>

@@ -4,13 +4,14 @@
 const tauri = window.__TAURI__;
 const appWindow = tauri && tauri.window ? tauri.window.getCurrentWindow() : null;
 
+const invoke = tauri && tauri.core ? tauri.core.invoke : null;
+const listen = tauri && tauri.event ? tauri.event.listen : null;
+
 const GITHUB_URL = 'https://github.com/Sp1KLe/Bearite-PC';
-const MODS_PATH = '%APPDATA%\\Bearite-PC\\mods';
-const DATA_PATH = '%APPDATA%\\Bearite-PC';
 const NICK_MAX = 24;
 
 const state = {
-  game: { found: true, name: 'Super Bear Adventure', version: '13.0.8', pkg: 'com.Earthkwak.Platformer' },
+  game: { found: false, name: 'Super Bear Adventure', pkg: 'com.Earthkwak.Platformer' },
   mods: [
     { id: 'bearite', name: 'Bearite', meta: 'v1.2.0 · Bearite · встроенный · нативных: 1 · настроек: 5', enabled: true },
   ],
@@ -92,8 +93,17 @@ document.querySelectorAll('.nav-item[data-page]').forEach((b) => {
 function renderGame() {
   const g = state.game;
   $('game-name').textContent = g.name;
-  $('game-status').textContent = g.found ? g.name + ' найдена' : g.name + ' не найдена';
-  $('game-meta').textContent = g.found ? 'Версия ' + g.version + ' · ' + g.pkg : 'Игра пока не подключена';
+  $('game-status').textContent = g.found ? g.name + ' найдена' : 'Игра будет скачана';
+  $('game-meta').textContent = g.found ? 'Готова · ' + g.pkg : 'Скачается при первом запуске';
+}
+
+async function refreshEnv() {
+  if (!invoke) return;
+  try {
+    const info = await invoke('env_info');
+    state.game.found = !!info.game_ready;
+    renderGame();
+  } catch (e) { /* keep the previous state */ }
 }
 
 // ---------- mods ----------
@@ -171,11 +181,69 @@ $('nick').addEventListener('input', () => {
 });
 $('nick').addEventListener('change', () => log('Ник сохранён: ' + $('nick').value.trim()));
 
-// ---------- play / save buttons ----------
-$('btn-play').addEventListener('click', () => {
-  log('Нажато «Играть с модами» (запуск игры будет подключён на следующем этапе)');
-  toast('Запуск игры подключим на следующем этапе');
+// ---------- launching the game ----------
+let launching = false;
+
+function consentGiven() {
+  try { return localStorage.getItem('consent') === '1'; } catch (e) { return false; }
+}
+function saveConsent() {
+  try { localStorage.setItem('consent', '1'); } catch (e) { /* storage may be unavailable */ }
+}
+
+// phase: idle | working | running | error; progress 0..100, or -1 when unknown
+function applyLaunchState(s) {
+  launching = s.phase === 'working' || s.phase === 'running';
+  const btn = $('btn-play');
+  btn.disabled = launching;
+  btn.classList.toggle('working', s.phase === 'working' && s.progress >= 0);
+  btn.classList.toggle('indeterminate', s.phase === 'working' && s.progress < 0);
+  btn.classList.toggle('running', s.phase === 'running');
+  btn.style.setProperty('--p', Math.max(0, s.progress) + '%');
+  $('play-label').textContent = launching ? s.text : 'Играть с модами';
+  if (s.phase === 'error') {
+    const text = String(s.text || 'Ошибка запуска');
+    toast(text.length > 140 ? text.slice(0, 140) + '… (подробности в логе)' : text);
+  }
+  if (s.phase === 'idle' || s.phase === 'error') refreshEnv();
+}
+
+async function startLaunch() {
+  applyLaunchState({ phase: 'working', text: 'Подготовка…', progress: -1 });
+  try {
+    await invoke('play');
+  } catch (e) {
+    applyLaunchState({ phase: 'idle', text: '', progress: 0 });
+    toast(String(e));
+  }
+}
+
+async function onPlay() {
+  if (launching) return;
+  if (!invoke) { toast('Запуск работает только в приложении лаунчера'); return; }
+  let info = { ready: true };
+  try { info = await invoke('env_info'); } catch (e) { /* try to launch anyway */ }
+  if (!info.ready && !consentGiven()) {
+    $('consent').hidden = false;
+    return;
+  }
+  startLaunch();
+}
+
+$('btn-play').addEventListener('click', onPlay);
+$('consent-no').addEventListener('click', () => { $('consent').hidden = true; });
+$('consent-yes').addEventListener('click', () => {
+  saveConsent();
+  $('consent').hidden = true;
+  startLaunch();
 });
+
+if (listen) {
+  listen('launch-state', (e) => applyLaunchState(e.payload));
+  listen('launch-log', (e) => log(String(e.payload)));
+}
+
+// ---------- save button ----------
 $('btn-save').addEventListener('click', () => {
   log('Нажато «Загрузить сохранение» (пока не подключено)');
   toast('Загрузка сохранения пока не подключена');
@@ -205,9 +273,17 @@ document.querySelectorAll('.topbar, .logo-cell, .topbar > *:not(.controls), .top
   .forEach((el) => el.setAttribute('data-tauri-drag-region', ''));
 
 // ---------- start ----------
-$('mods-path').textContent = MODS_PATH;
-$('set-mods-path').textContent = MODS_PATH;
-$('set-data-path').textContent = DATA_PATH;
+function showPaths(data, mods) {
+  $('mods-path').textContent = mods;
+  $('set-mods-path').textContent = mods;
+  $('set-data-path').textContent = data;
+  $('consent-path').textContent = data;
+}
+showPaths('%LOCALAPPDATA%\\Bearite-PC', '%LOCALAPPDATA%\\Bearite-PC\\mods');
+if (invoke) {
+  invoke('paths').then((p) => showPaths(p.data, p.mods)).catch(() => {});
+}
 renderGame();
+refreshEnv();
 renderMods();
 renderLog(); // the log starts empty
