@@ -3,7 +3,7 @@ name: Build Bearite-PC
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: ['**']
 
 jobs:
   build:

@@ -1,6 +1,8 @@
 // Hide the console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod launch;
+
 /// Opens the project page in the default browser. Only the project's own
 /// GitHub links are allowed, so the window cannot start arbitrary addresses.
 #[tauri::command]
@@ -25,7 +27,13 @@ fn open_url(url: String) -> Result<(), String> {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![open_url])
+        .manage(launch::Busy::default())
+        .invoke_handler(tauri::generate_handler![
+            open_url,
+            launch::paths,
+            launch::env_info,
+            launch::play
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Bearite-PC");
 }
