@@ -649,14 +649,14 @@ fn enable_hypervisor(app: &AppHandle) -> String {
     ps.args([
         "-NoProfile",
         "-Command",
-        "try { $p = Start-Process dism.exe -ArgumentList '/online','/enable-feature','/featurename:HypervisorPlatform','/all','/norestart' -Verb RunAs -Wait -PassThru -ErrorAction Stop; Write-Output ('код ' + $p.ExitCode) } catch { Write-Output ('ошибка: ' + $_.Exception.Message) }",
+        "try { $p = Start-Process dism.exe -ArgumentList '/online','/enable-feature','/featurename:HypervisorPlatform','/all','/norestart' -Verb RunAs -Wait -PassThru -ErrorAction Stop; Write-Output ('EXIT=' + $p.ExitCode) } catch { Write-Output ('ERR=' + $_.Exception.Message) }",
     ]);
     let text = match run(&mut ps) {
         Ok((_, t)) => t.trim().to_string(),
         Err(e) => e,
     };
     log(app, format!("Результат включения компонента: {}", text));
-    if text.contains("код 0") || text.contains("код 3010") {
+    if text.contains("EXIT=0") || text.contains("EXIT=3010") {
         "Компонент Windows включён. Перезагрузите ПК и нажмите «Играть» снова".to_string()
     } else {
         "Не удалось включить компонент Windows (нужно нажать «Да» в запросе). Включите вручную: Win+R, optionalfeatures, галочка «Платформа низкоуровневой оболочки Windows», затем перезагрузка".to_string()
