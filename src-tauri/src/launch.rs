@@ -667,6 +667,12 @@ fn enable_hypervisor(app: &AppHandle) -> String {
 /// Writes the virtual device by hand, so no Java / avdmanager is needed.
 fn create_avd() -> R<()> {
     let avd_dir = avd_home().join(format!("{}.avd", AVD_NAME));
+    // Data left by another Android version cannot boot on this one (black screen),
+    // so a device made for a different version is thrown away.
+    let mark = avd_dir.join(format!("api{}.mark", ANDROID_API));
+    if avd_dir.exists() && !mark.exists() {
+        let _ = fs::remove_dir_all(&avd_dir);
+    }
     fs::create_dir_all(&avd_dir).map_err(|e| format!("не удалось создать устройство: {}", e))?;
     fs::create_dir_all(data_dir().join("user")).map_err(|e| format!("не удалось создать папку: {}", e))?;
 
@@ -707,6 +713,7 @@ fn create_avd() -> R<()> {
         name = AVD_NAME,
         api = ANDROID_API
     );
+    let _ = fs::write(&mark, "ok");
     fs::write(avd_dir.join("config.ini"), config)
         .map_err(|e| format!("не удалось записать настройки устройства: {}", e))
 }
@@ -761,8 +768,9 @@ fn wait_boot(app: &AppHandle, mut child: Option<&mut Child>) -> R<()> {
                 }
             }
         }
-        if start.elapsed() > Duration::from_secs(600) {
-            return Err(format!("Android не загрузился за 10 минут. {}", emulator_log_tail()));
+        if start.elapsed() > Duration::from_secs(420) {
+            let (_, devs) = adb(&["devices"]).unwrap_or((false, String::new()));
+            return Err(format!("Android не загрузился за 7 минут. adb: {}. {}", devs.replace('\n', " ").trim(), emulator_log_tail()));
         }
         if device_online() {
             if let Ok((true, text)) = adb_dev(&["shell", "getprop", "sys.boot_completed"]) {
