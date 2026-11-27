@@ -693,7 +693,7 @@ fn create_avd() -> R<()> {
          hw.cpu.ncore=4\n\
          hw.ramSize=3072\n\
          hw.gpu.enabled=yes\n\
-         hw.gpu.mode=auto\n\
+         hw.gpu.mode=angle_indirect\n\
          hw.lcd.width=1280\n\
          hw.lcd.height=720\n\
          hw.lcd.density=240\n\
@@ -747,7 +747,7 @@ fn start_emulator() -> R<Child> {
         port.as_str(),
         "-no-boot-anim",
         "-gpu",
-        "auto",
+        "angle_indirect",
         "-netdelay",
         "none",
         "-netspeed",
@@ -942,6 +942,19 @@ fn launch(app: &AppHandle, download_only: bool) -> R<()> {
     state(app, "working", "Запуск игры…", -1);
     start_game()?;
     log(app, "Игра запущена.");
+    if let Ok(t) = fs::read_to_string(emulator_log_path()) {
+        let gl: Vec<&str> = t
+            .lines()
+            .filter(|l| {
+                let l = l.to_lowercase();
+                l.contains("renderer") || l.contains("gles") || l.contains("vulkan") || l.contains("angle")
+            })
+            .take(6)
+            .collect();
+        if !gl.is_empty() {
+            log(app, format!("Графика эмулятора: {}", gl.join(" | ")));
+        }
+    }
     fullscreen_emulator(app);
     state(app, "running", "Игра запущена", 100);
     wait_until_closed(app);
