@@ -626,37 +626,40 @@ fn do_reset(app: &AppHandle) -> R<()> {
 
 // ---------------------------------------------------------------- the virtual device
 
-fn accel_check(app: &AppHandle) -> R<()> {
+/// Diagnostic only: the check reports just the old AEHD driver, while the
+/// emulator can also use the Windows Hypervisor Platform, so it never blocks.
+fn accel_check(app: &AppHandle) {
     let mut c = command(&emulator_path());
     sdk_env(&mut c);
     c.arg("-accel-check");
-    let (ok, text) = run(&mut c)?;
-    let summary: Vec<&str> = text
-        .lines()
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty())
-        .collect();
-    log(app, format!("Проверка ускорения: {}", summary.join(" | ")));
-    if ok {
-        return Ok(());
+    if let Ok((ok, text)) = run(&mut c) {
+        let summary: Vec<&str> = text.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect();
+        log(app, format!("Проверка ускорения: {}", summary.join(" | ")));
+        if !ok {
+            log(app, "Проверка ускорения не пройдена, всё равно пробую запустить эмулятор.");
+        }
     }
-    // The Google emulator needs the Windows Hypervisor Platform component.
-    // Try to switch it on (Windows shows its own "allow changes" prompt).
-    log(app, "Ускорение недоступно. Пробую включить компонент Windows «Платформа низкоуровневой оболочки» (появится запрос Windows, нажмите «Да»).");
+}
+
+/// Switches on the Windows Hypervisor Platform (Windows asks for permission).
+fn enable_hypervisor(app: &AppHandle) -> String {
+    log(app, "Включаю компонент Windows «Платформа низкоуровневой оболочки» (нажмите «Да» в запросе Windows)…");
     state(app, "working", "Включаю компонент Windows…", -1);
     let mut ps = command(Path::new("powershell.exe"));
     ps.args([
         "-NoProfile",
         "-Command",
-        "$p = Start-Process dism.exe -ArgumentList '/online','/enable-feature','/featurename:HypervisorPlatform','/all','/norestart' -Verb RunAs -Wait -PassThru; exit $p.ExitCode",
+        "try { $p = Start-Process dism.exe -ArgumentList '/online','/enable-feature','/featurename:HypervisorPlatform','/all','/norestart' -Verb RunAs -Wait -PassThru -ErrorAction Stop; Write-Output ('код ' + $p.ExitCode) } catch { Write-Output ('ошибка: ' + $_.Exception.Message) }",
     ]);
-    match run(&mut ps) {
-        Ok((true, _)) => Err("компонент Windows включён. Перезагрузите ПК и нажмите «Играть» снова".into()),
-        Ok((false, t)) => {
-            log(app, format!("Включение компонента: {}", t.trim()));
-            Err("не удалось включить компонент «Платформа низкоуровневой оболочки Windows» (нужно нажать «Да» в запросе Windows). Если запроса не было, виртуализация отключена в BIOS".into())
-        }
-        Err(e) => Err(format!("не удалось включить компонент Windows: {}", e)),
+    let text = match run(&mut ps) {
+        Ok((_, t)) => t.trim().to_string(),
+        Err(e) => e,
+    };
+    log(app, format!("Результат включения компонента: {}", text));
+    if text.contains("код 0") || text.contains("код 3010") {
+        "Компонент Windows включён. Перезагрузите ПК и нажмите «Играть» снова".to_string()
+    } else {
+        "Не удалось включить компонент Windows (нужно нажать «Да» в запросе). Включите вручную: Win+R, optionalfeatures, галочка «Платформа низкоуровневой оболочки Windows», затем перезагрузка".to_string()
     }
 }
 
@@ -862,14 +865,21 @@ fn launch(app: &AppHandle, download_only: bool) -> R<()> {
     if device_online() {
         log(app, "Эмулятор уже запущен, использую его.");
     } else {
-        accel_check(app)?;
+        accel_check(app);
         create_avd()?;
         state(app, "working", "Запуск Android…", -1);
         log(app, "Запускаю эмулятор. Первая загрузка может занять несколько минут.");
         child = Some(start_emulator()?);
     }
 
-    wait_boot(app, child.as_mut())?;
+    if let Err(e) = wait_boot(app, child.as_mut()) {
+        let low = e.to_lowercase();
+        if low.contains("accel") || low.contains("whpx") || low.contains("hypervisor") || low.contains("hyper-v") {
+            log(app, format!("Эмулятор не стартовал: {}", e));
+            return Err(enable_hypervisor(app));
+        }
+        return Err(e);
+    }
     install_game(app)?;
 
     state(app, "working", "Запуск игры…", -1);
