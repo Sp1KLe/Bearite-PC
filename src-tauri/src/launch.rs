@@ -638,9 +638,25 @@ fn accel_check(app: &AppHandle) -> R<()> {
         .collect();
     log(app, format!("Проверка ускорения: {}", summary.join(" | ")));
     if ok {
-        Ok(())
-    } else {
-        Err("не включена виртуализация. Включите её в BIOS и добавьте компонент Windows «Платформа низкоуровневой оболочки Windows» (Windows Hypervisor Platform), затем перезагрузите ПК".into())
+        return Ok(());
+    }
+    // The Google emulator needs the Windows Hypervisor Platform component.
+    // Try to switch it on (Windows shows its own "allow changes" prompt).
+    log(app, "Ускорение недоступно. Пробую включить компонент Windows «Платформа низкоуровневой оболочки» (появится запрос Windows, нажмите «Да»).");
+    state(app, "working", "Включаю компонент Windows…", -1);
+    let mut ps = command(Path::new("powershell.exe"));
+    ps.args([
+        "-NoProfile",
+        "-Command",
+        "$p = Start-Process dism.exe -ArgumentList '/online','/enable-feature','/featurename:HypervisorPlatform','/all','/norestart' -Verb RunAs -Wait -PassThru; exit $p.ExitCode",
+    ]);
+    match run(&mut ps) {
+        Ok((true, _)) => Err("компонент Windows включён. Перезагрузите ПК и нажмите «Играть» снова".into()),
+        Ok((false, t)) => {
+            log(app, format!("Включение компонента: {}", t.trim()));
+            Err("не удалось включить компонент «Платформа низкоуровневой оболочки Windows» (нужно нажать «Да» в запросе Windows). Если запроса не было, виртуализация отключена в BIOS".into())
+        }
+        Err(e) => Err(format!("не удалось включить компонент Windows: {}", e)),
     }
 }
 
