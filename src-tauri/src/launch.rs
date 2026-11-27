@@ -27,7 +27,8 @@ const GAME_URL: &str = "https://github.com/Sp1KLe/Bearite-PC/releases/download/v
 const GAME_RELEASE_API: &str = "https://api.github.com/repos/Sp1KLe/Bearite-PC/releases/tags/v1";
 const REPO_BASE: &str = "https://dl.google.com/android/repository/";
 /// Android 13: its x86_64 Google APIs image can translate ARM apps.
-const ANDROID_API: u32 = 33;
+/// Android 11: its x86 images translate ARM code, and the game only ships ARM libraries.
+const ANDROID_API: u32 = 30;
 const AVD_NAME: &str = "Bearite";
 /// Unusual port so we do not clash with Android Studio or other emulators.
 const EMU_PORT: u16 = 5584;
@@ -684,7 +685,7 @@ fn create_avd() -> R<()> {
          abi.type=x86_64\n\
          hw.cpu.arch=x86_64\n\
          hw.cpu.ncore=4\n\
-         hw.ramSize=2048\n\
+         hw.ramSize=3072\n\
          hw.gpu.enabled=yes\n\
          hw.gpu.mode=auto\n\
          hw.lcd.width=1280\n\
@@ -699,7 +700,7 @@ fn create_avd() -> R<()> {
          tag.display=Google APIs\n\
          PlayStore.enabled=false\n\
          disk.dataPartition.size=3G\n\
-         fastboot.forceColdBoot=yes\n\
+         fastboot.forceColdBoot=no\n\
          showDeviceFrame=no\n\
          skin.dynamic=yes\n\
          skin.name=1280x720\n",
@@ -737,7 +738,6 @@ fn start_emulator() -> R<Child> {
         AVD_NAME,
         "-port",
         port.as_str(),
-        "-no-snapshot",
         "-no-boot-anim",
         "-gpu",
         "auto",
@@ -805,7 +805,7 @@ fn install_game(app: &AppHandle) -> R<()> {
         return Ok(());
     }
     let hint = if text.contains("NO_MATCHING_ABIS") {
-        " Игра не подходит этому Android: в ней нет нужного процессорного кода. Пришлите мне это сообщение."
+        " В этом Android нет перевода ARM-кода. Пришлите мне это сообщение."
     } else {
         ""
     };
@@ -826,6 +826,55 @@ fn start_game() -> R<()> {
         return Err(format!("игра не запустилась: {}", text.trim()));
     }
     Ok(())
+}
+
+/// Makes the emulator window borderless and full screen, and hides its side toolbar.
+fn fullscreen_emulator(app: &AppHandle) {
+    let script = r#"
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type @'
+using System; using System.Text; using System.Collections.Generic; using System.Runtime.InteropServices;
+public class W {
+  public delegate bool EP(IntPtr h, IntPtr l);
+  [DllImport("user32.dll")] public static extern bool EnumWindows(EP p, IntPtr l);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr h, int i);
+  [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr h, int i, int v);
+  [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr a, int x, int y, int w, int hh, uint f);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
+  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  public static List<IntPtr> All() { var r = new List<IntPtr>(); EnumWindows((h,l)=>{ if (IsWindowVisible(h)) r.Add(h); return true; }, IntPtr.Zero); return r; }
+  public static string Title(IntPtr h) { var s = new StringBuilder(256); GetWindowText(h, s, 256); return s.ToString(); }
+  public static uint Pid(IntPtr h) { uint p; GetWindowThreadProcessId(h, out p); return p; }
+}
+'@
+[W]::SetProcessDPIAware() | Out-Null
+$b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+for ($i = 0; $i -lt 20; $i++) {
+  $main = $null
+  foreach ($h in [W]::All()) { if ([W]::Title($h) -like 'Android Emulator*') { $main = $h } }
+  if ($main) {
+    $pidv = [W]::Pid($main)
+    foreach ($h in [W]::All()) { if ($h -ne $main -and [W]::Pid($h) -eq $pidv) { [W]::ShowWindow($h, 0) | Out-Null } }
+    $st = [W]::GetWindowLong($main, -16)
+    $st = $st -band (-bnot 0x00C00000) -band (-bnot 0x00040000)
+    [W]::SetWindowLong($main, -16, $st) | Out-Null
+    [W]::SetWindowPos($main, [IntPtr](-1), $b.X, $b.Y, $b.Width, $b.Height, 0x0020 -bor 0x0040) | Out-Null
+    Write-Output 'OK'
+    break
+  }
+  Start-Sleep -Seconds 1
+}
+"#;
+    let mut ps = command(Path::new("powershell.exe"));
+    ps.args(["-NoProfile", "-Command", script]);
+    match run(&mut ps) {
+        Ok((_, t)) if t.contains("OK") => log(app, "Окно игры развёрнуто на весь экран (закрыть: Alt+F4)."),
+        Ok((_, t)) => log(app, format!("Не удалось развернуть окно на весь экран: {}", t.trim())),
+        Err(e) => log(app, format!("Не удалось развернуть окно на весь экран: {}", e)),
+    }
 }
 
 /// Waits until the emulator window is closed.
@@ -885,6 +934,7 @@ fn launch(app: &AppHandle, download_only: bool) -> R<()> {
     state(app, "working", "Запуск игры…", -1);
     start_game()?;
     log(app, "Игра запущена.");
+    fullscreen_emulator(app);
     state(app, "running", "Игра запущена", 100);
     wait_until_closed(app);
     Ok(())
