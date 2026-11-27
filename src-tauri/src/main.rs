@@ -32,7 +32,8 @@ fn main() {
             open_url,
             launch::paths,
             launch::env_info,
-            launch::play
+            launch::play,
+            launch::reset_all
         ])
         .run(tauri::generate_context!())
         .expect("error while running Bearite-PC");

@@ -22,7 +22,9 @@ use tauri::{AppHandle, Emitter, Manager};
 type R<T> = Result<T, String>;
 
 const GAME_PACKAGE: &str = "com.Earthkwak.Platformer";
-const RELEASE_API: &str = "https://api.github.com/repos/Sp1KLe/Bearite/releases/tags/v1";
+/// The game APK lives in this repository's own release v1.
+const GAME_URL: &str = "https://github.com/Sp1KLe/Bearite-PC/releases/download/v1/SBA.apk";
+const GAME_RELEASE_API: &str = "https://api.github.com/repos/Sp1KLe/Bearite-PC/releases/tags/v1";
 const REPO_BASE: &str = "https://dl.google.com/android/repository/";
 /// Android 13: its x86_64 Google APIs image can translate ARM apps.
 const ANDROID_API: u32 = 33;
@@ -48,8 +50,14 @@ pub struct Paths {
 
 #[derive(Serialize)]
 pub struct EnvInfo {
+    /// Android components are installed.
     ready: bool,
+    /// The game APK is downloaded.
     game_ready: bool,
+    /// Something is still missing and has to be downloaded.
+    needs_download: bool,
+    /// A download was interrupted and can be continued.
+    partial: bool,
 }
 
 /// True while a launch is in progress (so the button cannot start two at once).
@@ -129,22 +137,67 @@ pub fn paths() -> Paths {
     }
 }
 
-#[tauri::command]
-pub fn env_info() -> EnvInfo {
-    EnvInfo {
-        ready: components_ready(),
-        game_ready: apk_path().exists(),
-    }
+/// True if some download was interrupted and left a partly downloaded file behind.
+fn has_partial() -> bool {
+    [work_dir(), data_dir().join("game")].iter().any(|dir| {
+        fs::read_dir(dir)
+            .map(|entries| {
+                entries.filter_map(|e| e.ok()).any(|e| {
+                    e.path().extension().map_or(false, |x| x == "part")
+                        && e.metadata().map(|m| m.len() > 0).unwrap_or(false)
+                })
+            })
+            .unwrap_or(false)
+    })
 }
 
 #[tauri::command]
-pub fn play(app: AppHandle, busy: tauri::State<'_, Busy>) -> Result<(), String> {
+pub fn env_info() -> EnvInfo {
+    let ready = components_ready();
+    let game_ready = apk_path().exists();
+    EnvInfo {
+        ready,
+        game_ready,
+        needs_download: !ready || !game_ready,
+        partial: has_partial(),
+    }
+}
+
+/// Starts the game. With `download_only` it just downloads what is missing
+/// (continuing interrupted downloads) and stops.
+#[tauri::command]
+pub fn play(
+    app: AppHandle,
+    busy: tauri::State<'_, Busy>,
+    download_only: Option<bool>,
+) -> Result<(), String> {
     if busy.0.swap(true, Ordering::SeqCst) {
         return Err("запуск уже идёт".into());
     }
+    let download_only = download_only.unwrap_or(false);
     thread::spawn(move || {
-        match launch(&app) {
+        match launch(&app, download_only) {
             Ok(()) => state(&app, "idle", "", 0),
+            Err(e) => {
+                log(&app, format!("Ошибка: {}", e));
+                state(&app, "error", e, 0);
+            }
+        }
+        app.state::<Busy>().0.store(false, Ordering::SeqCst);
+    });
+    Ok(())
+}
+
+/// Deletes everything the launcher downloaded or created (Android, the game, the
+/// virtual device). The mods folder is kept.
+#[tauri::command]
+pub fn reset_all(app: AppHandle, busy: tauri::State<'_, Busy>) -> Result<(), String> {
+    if busy.0.swap(true, Ordering::SeqCst) {
+        return Err("Сейчас идёт запуск или игра открыта. Закройте её и повторите.".into());
+    }
+    thread::spawn(move || {
+        match do_reset(&app) {
+            Ok(()) => state(&app, "reset", "", 0),
             Err(e) => {
                 log(&app, format!("Ошибка: {}", e));
                 state(&app, "error", e, 0);
@@ -244,16 +297,15 @@ fn download(app: &AppHandle, label: &str, url: &str, dest: &Path, base: u64, tot
     }
     let part = dest.with_extension("part");
 
-    for attempt in 0..3 {
-        // The first try continues an interrupted download; later tries start clean.
+    let mut last_error = String::new();
+    for attempt in 0..4 {
+        // Always continue from what is already on disk (-C -), so a failed download
+        // can be resumed later and only the remainder is fetched.
         if attempt > 0 {
-            let _ = fs::remove_file(&part);
+            thread::sleep(Duration::from_secs(2));
         }
         let mut c = command(&system_tool("curl.exe"));
-        c.args(["-L", "--fail", "-sS", "--connect-timeout", "30"]);
-        if attempt == 0 {
-            c.args(["-C", "-"]);
-        }
+        c.args(["-L", "--fail", "-sS", "--connect-timeout", "30", "-C", "-"]);
         c.arg("-o").arg(&part).arg(url);
         c.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped());
 
@@ -281,12 +333,17 @@ fn download(app: &AppHandle, label: &str, url: &str, dest: &Path, base: u64, tot
         if let Some(mut s) = child.stderr.take() {
             let _ = s.read_to_string(&mut err_text);
         }
+        // curl error 33: the server refused to continue the file, so start it over.
+        if status.code() == Some(33) {
+            let _ = fs::remove_file(&part);
+        }
+        last_error = err_text.trim().to_string();
         log(
             app,
-            format!("Скачивание не удалось (попытка {}): {}", attempt + 1, err_text.trim()),
+            format!("Скачивание не удалось (попытка {}): {}", attempt + 1, last_error),
         );
     }
-    Err(format!("не удалось скачать {}", label))
+    Err(format!("не удалось скачать {}: {}", label, last_error))
 }
 
 /// Downloads a small text file (manifests, release info).
@@ -485,48 +542,85 @@ fn prepare_components(app: &AppHandle) -> R<()> {
     Ok(())
 }
 
-/// Downloads the game APK from the user's own release v1 (the largest .apk in it).
+/// Downloads the game APK (SBA.apk) from release v1 of this repository.
 fn download_game(app: &AppHandle) -> R<()> {
     if apk_path().exists() {
         return Ok(());
     }
-    state(app, "working", "Ищу файл игры…", -1);
-    log(app, "Ищу файл игры в релизе v1…");
+    state(app, "working", "Подготовка загрузки игры…", -1);
+    log(app, "Скачиваю игру (SBA.apk) из релиза v1…");
 
-    let text = fetch_text(
-        RELEASE_API,
+    // The size only drives the progress bar, so failing to read it is not an error.
+    let size = fetch_text(
+        GAME_RELEASE_API,
         &["Accept: application/vnd.github+json", "User-Agent: Bearite-PC"],
     )
-    .map_err(|e| format!("не удалось открыть релиз v1 ({})", e))?;
-    let json: serde_json::Value =
-        serde_json::from_str(&text).map_err(|e| format!("странный ответ GitHub: {}", e))?;
+    .ok()
+    .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+    .and_then(|json| {
+        json["assets"]
+            .as_array()?
+            .iter()
+            .find(|a| a["name"].as_str() == Some("SBA.apk"))?["size"]
+            .as_u64()
+    })
+    .unwrap_or(0);
 
-    let mut apks: Vec<(String, u64, String)> = json["assets"]
-        .as_array()
-        .map(|list| {
-            list.iter()
-                .filter_map(|a| {
-                    let name = a["name"].as_str()?;
-                    if !name.to_lowercase().ends_with(".apk") {
-                        return None;
-                    }
-                    let url = a["browser_download_url"].as_str()?;
-                    Some((name.to_string(), a["size"].as_u64().unwrap_or(0), url.to_string()))
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-    apks.sort_by(|a, b| b.1.cmp(&a.1));
-
-    for (n, s, _) in &apks {
-        log(app, format!("В релизе: {} ({} МБ)", n, s / 1_048_576));
-    }
-    let Some((name, size, url)) = apks.first().cloned() else {
-        return Err("в релизе v1 нет файла .apk".into());
-    };
-    log(app, format!("Беру самый большой файл: {}", name));
-    download(app, "игры", &url, &apk_path(), 0, size)?;
+    download(app, "игры", GAME_URL, &apk_path(), 0, size)?;
     log(app, "Файл игры скачан.");
+    Ok(())
+}
+
+/// Stops our emulator and deletes everything the launcher created, except the mods.
+fn do_reset(app: &AppHandle) -> R<()> {
+    state(app, "working", "Сброс…", -1);
+    log(app, "Сбрасываю всё: останавливаю эмулятор и удаляю скачанное…");
+    if adb_path().exists() {
+        let _ = adb_dev(&["emu", "kill"]);
+        thread::sleep(Duration::from_secs(2));
+        let _ = adb(&["kill-server"]);
+    }
+
+    let targets = [
+        sdk_dir(),
+        avd_home(),
+        data_dir().join("game"),
+        work_dir(),
+        data_dir().join("user"),
+        emulator_log_path(),
+    ];
+    for target in &targets {
+        let mut last = String::new();
+        let mut removed = false;
+        // Windows may keep files locked for a few seconds after the emulator stops.
+        for _ in 0..8 {
+            let result = if target.is_dir() {
+                fs::remove_dir_all(target)
+            } else if target.exists() {
+                fs::remove_file(target)
+            } else {
+                Ok(())
+            };
+            match result {
+                Ok(()) => {
+                    removed = true;
+                    break;
+                }
+                Err(e) => {
+                    last = e.to_string();
+                    thread::sleep(Duration::from_secs(2));
+                }
+            }
+        }
+        if !removed {
+            return Err(format!(
+                "не удалось удалить {}: {}. Закройте окно эмулятора и повторите.",
+                target.display(),
+                last
+            ));
+        }
+    }
+    log(app, "Сброс выполнен: скачанное удалено, моды остались.");
     Ok(())
 }
 
@@ -735,10 +829,18 @@ fn wait_until_closed(app: &AppHandle) {
 
 // ---------------------------------------------------------------- the whole launch
 
-fn launch(app: &AppHandle) -> R<()> {
-    log(app, "Запускаю игру. Пока без модов: их подключим на следующем этапе.");
+fn launch(app: &AppHandle, download_only: bool) -> R<()> {
+    if download_only {
+        log(app, "Докачиваю недостающие файлы.");
+    } else {
+        log(app, "Запускаю игру. Пока без модов: их подключим на следующем этапе.");
+    }
     prepare_components(app)?;
     download_game(app)?;
+    if download_only {
+        log(app, "Всё скачано. Теперь можно нажимать «Играть с модами».");
+        return Ok(());
+    }
 
     let mut child: Option<Child> = None;
     if device_online() {

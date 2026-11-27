@@ -477,3 +477,11 @@ h1 {
   z-index: 10;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.infobar[hidden] { display: none; }
+.infobar.resume { margin-top: 14px; }
+.infobar.resume + .infobar { margin-top: 14px; }
+.infobar.resume .tool { margin-left: auto; height: 38px; flex: none; }
+.btn-outline.danger { border-color: rgba(214, 96, 80, 0.7); color: #f0a094; }
+.btn-outline.danger:hover { background: rgba(214, 96, 80, 0.12); }
+.tool-danger { background: #c5473a; color: #fff; border-color: #c5473a; }

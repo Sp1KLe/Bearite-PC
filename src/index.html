@@ -123,7 +123,13 @@
         </div>
       </div>
 
-      <div class="infobar">
+      <div class="infobar resume" id="resume-bar" hidden>
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
+        <span>Загрузка не завершена. Можно продолжить с места остановки.</span>
+        <button class="tool tool-cream" id="btn-resume">Докачать</button>
+      </div>
+
+      <div class="infobar" id="infobar">
         <svg viewBox="0 0 24 24"><path fill="currentColor" d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
         <span>Оригинальная игра не изменяется и не удаляется. Сохранения запуска через Bearite хранятся отдельно от неё.</span>
       </div>
@@ -186,6 +192,7 @@
           </div>
           <button class="btn-outline" id="set-copy-log">Скопировать лог</button>
           <button class="btn-outline" id="set-clear-log">Очистить лог</button>
+          <button class="btn-outline danger" id="set-reset">Сбросить всё</button>
         </div>
       </div>
     </section>
@@ -223,6 +230,17 @@
     <div class="modal-actions">
       <button class="tool" id="consent-no">Отмена</button>
       <button class="tool tool-cream" id="consent-yes">Скачать и играть</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="reset-modal" hidden>
+  <div class="modal-card">
+    <div class="card-title">Сбросить всё?</div>
+    <p class="muted">Будут удалены скачанный Android, файл игры и виртуальное устройство. Моды и настройки останутся. При следующем запуске всё скачается заново.</p>
+    <div class="modal-actions">
+      <button class="tool" id="reset-no">Отмена</button>
+      <button class="tool tool-danger" id="reset-yes">Сбросить</button>
     </div>
   </div>
 </div>

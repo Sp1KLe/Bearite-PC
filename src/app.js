@@ -97,12 +97,24 @@ function renderGame() {
   $('game-meta').textContent = g.found ? 'Готова · ' + g.pkg : 'Скачается при первом запуске';
 }
 
+let env = { needs_download: false, partial: false };
+let failed = false;
+let pendingDownloadOnly = false;
+
+function renderResume() {
+  const show = !launching && env.needs_download && (env.partial || failed);
+  $('resume-bar').hidden = !show;
+  $('infobar').hidden = show;
+}
+
 async function refreshEnv() {
   if (!invoke) return;
   try {
     const info = await invoke('env_info');
+    env = info;
     state.game.found = !!info.game_ready;
     renderGame();
+    renderResume();
   } catch (e) { /* keep the previous state */ }
 }
 
@@ -201,24 +213,35 @@ function applyLaunchState(s) {
   btn.classList.toggle('running', s.phase === 'running');
   btn.style.setProperty('--p', Math.max(0, s.progress) + '%');
   $('play-label').textContent = launching ? s.text : 'Играть с модами';
+  if (s.phase === 'reset') {
+    try { localStorage.removeItem('consent'); } catch (e) { /* ignore */ }
+    failed = false;
+    toast('Всё сброшено. Моды остались.');
+    refreshEnv();
+    return;
+  }
+  if (s.phase === 'working') failed = false;
   if (s.phase === 'error') {
+    failed = true;
     const text = String(s.text || 'Ошибка запуска');
     toast(text.length > 140 ? text.slice(0, 140) + '… (подробности в логе)' : text);
   }
+  renderResume();
   if (s.phase === 'idle' || s.phase === 'error') refreshEnv();
 }
 
-async function startLaunch() {
+async function startLaunch(downloadOnly) {
   applyLaunchState({ phase: 'working', text: 'Подготовка…', progress: -1 });
   try {
-    await invoke('play');
+    await invoke('play', { downloadOnly: !!downloadOnly });
   } catch (e) {
     applyLaunchState({ phase: 'idle', text: '', progress: 0 });
     toast(String(e));
   }
 }
 
-async function onPlay() {
+async function onPlay(downloadOnly) {
+  pendingDownloadOnly = !!downloadOnly;
   if (launching) return;
   if (!invoke) { toast('Запуск работает только в приложении лаунчера'); return; }
   let info = { ready: true };
@@ -227,21 +250,31 @@ async function onPlay() {
     $('consent').hidden = false;
     return;
   }
-  startLaunch();
+  startLaunch(pendingDownloadOnly);
 }
 
-$('btn-play').addEventListener('click', onPlay);
+$('btn-play').addEventListener('click', () => onPlay(false));
+$('btn-resume').addEventListener('click', () => onPlay(true));
 $('consent-no').addEventListener('click', () => { $('consent').hidden = true; });
 $('consent-yes').addEventListener('click', () => {
   saveConsent();
   $('consent').hidden = true;
-  startLaunch();
+  startLaunch(pendingDownloadOnly);
 });
 
 if (listen) {
   listen('launch-state', (e) => applyLaunchState(e.payload));
   listen('launch-log', (e) => log(String(e.payload)));
 }
+
+// ---------- reset ----------
+$('set-reset').addEventListener('click', () => { $('reset-modal').hidden = false; });
+$('reset-no').addEventListener('click', () => { $('reset-modal').hidden = true; });
+$('reset-yes').addEventListener('click', () => {
+  $('reset-modal').hidden = true;
+  if (!invoke) { toast('Работает только в приложении лаунчера'); return; }
+  invoke('reset_all').catch((e) => toast(String(e)));
+});
 
 // ---------- save button ----------
 $('btn-save').addEventListener('click', () => {
